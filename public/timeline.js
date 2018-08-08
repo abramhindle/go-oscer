@@ -54,6 +54,14 @@ function TimeLineControls( timeLine, timeLineUI ) {
         div.appendChild(colorButton);
         return div;       
     };
+    this.genDef = function() {
+        var dev = {"type":"TimeLineControls"};
+        var ui = this.timeLineUI.genDef();
+        var tl = this.timeLine.genDef();
+        dev["tui"] = ui;
+        dev["t"] = tl;
+        return dev;
+    };
     return this;
 }
 
@@ -167,6 +175,14 @@ function TimeLineUI( timeLine ) {
     this.mouseDelegate = new MouseStartingBehaviour( timeLine, this );
     var self = this;
     this.cursor = -0.1;
+    this.genDef = function() {
+        var def = {"type":"TimeLineUI"};
+        var serializable = ["start","end","top","bottom","background","controlColor","cursorColor","lineColor","cursor"];
+        for (var i = 0 ; i < serializable.length ; i++) {
+            def[serializable[i]] = this[serializable[i]];
+        }
+        return def;
+    }
     this.getCM = function() {
         if (this.cm) {
             return this.cm;
@@ -369,7 +385,13 @@ function TimeLine() {
     this.value = [];
     this.listeners = [];
     this.dirty = false;
-    
+    this.genDef = function() {
+        var def = {"type":"TimeLine"};
+        def["time"] = this.time.slice();
+        def["value"] = this.value.slice();
+        def["name"] = this.name;
+        return def;
+    };
     this.estimate = function(time) {
         if (time <= 0.0) {
             return this.value[0];
@@ -492,6 +514,14 @@ function Table(size,defaultValue) {
     this.value = Array(size).fill(defaultValue);
     this.listeners = [];
     this.dirty = false;
+    this.genDef = function() {
+        var def = {"type":"Table"};
+        def["value"] = this.value.slice();
+        def["size"] = this.value.length;
+        def["defaultValue"] = this.defaultValue;
+        return def;
+    };
+
     this.estimate = function(index) {
         index = Math.floor(index);
         if (index < 0) {
@@ -606,6 +636,14 @@ function TableUI( table ) {
     this.mouseDelegate = new MouseStartingBehaviour( table, this );
     var self = this;
     this.cursor = -0.1;
+    this.genDef = function() {
+        var def = {"type":"TableUI"};
+        var serializable = ["start","end","top","bottom","background","controlColor","cursorColor","lineColor","cursor"];
+        for (var i = 0 ; i < serializable.length ; i++) {
+            def[serializable[i]] = this[serializable[i]];
+        }
+        return def;
+    }    
     this.getCM = function() {
         if (this.cm) {
             return this.cm;
@@ -779,3 +817,45 @@ function TableUI( table ) {
 
     return this;
 }
+
+function generateTLandUIFromDef(def) {
+    console.log(def);
+    var t   = generateTimeLine(def["t"]);
+    var tui = generateTimeLineUI(def["tui"], t);
+    return [t,tui];
+}
+
+function generateTimeLine(def) {
+    var tl;
+    console.log("generateTimeLine");
+    if (def.type == "TimeLine") {
+        tl = new TimeLine();
+        tl.time = def.time.slice();        
+    } else if (def.type == "Table") {
+        tl = new Table(def.size,def.defaultValue);
+    } else {
+        throw "genTL: I don't know what this is "+JSON.stringify(def);
+    }
+    tl.name = def.name;
+    tl.value = def.value.slice();
+    return tl;
+}
+
+function generateTimeLineUI(def,tl) {
+    var tui;
+    console.log("generateTimeLineUI");
+    console.log(def);
+    var serializable = ["start","end","top","bottom","background","controlColor","cursorColor","lineColor","cursor"];
+    if (def.type == "TimeLineUI") {
+        tui = new TimeLineUI(tl);
+    } else if (def.type == "TableUI") {
+        tui = new TableUI(tl);
+    } else {
+        throw "genTUI: I don't know what this is "+JSON.stringify(def);
+    }
+    for (var i = 0 ; i < serializable.length; i++) {
+        tui[serializable[i]] = def[serializable[i]];
+    }
+    return tui;
+}
+

@@ -72,7 +72,7 @@ SynthDef(\noiseGrain,
 		}
 	).load(s);
 
-SynthDef(\noiser,{arg out=0,lpf=0.0,shift=0.0,pitchdisp=0.0,timedisp=0.0,pink=0.0,white=0.0,brown=0.0,rq=0.5;
+SynthDef(\noiser,{arg out=0,amp=1.0,lpf=0.0,shift=0.0,pitchdisp=0.0,timedisp=0.0,pink=0.0,white=0.0,brown=0.0,rq=0.5;
 		Out.ar(out,
 			Clip.ar(
 			4.0*
@@ -87,7 +87,7 @@ SynthDef(\noiser,{arg out=0,lpf=0.0,shift=0.0,pitchdisp=0.0,timedisp=0.0,pink=0.
 				pitchdisp, 				// pitch dispersion
 				LinExp.kr(timedisp,0,1,0.001,0.1)	// time dispersion
 			)!2
-			,-0.9,0.9)
+			,-0.9,0.9)*amp
 		);
 	}).add
 ;
@@ -263,18 +263,23 @@ OSCFunc.newMatching(~makeLinSetter.(~pinknoiser,\timedisp,0.0,1.0),  '/pinknoise
 	}).play
 )
 
+~zpulseMax = 180;
+~zpulseMax = 200;
+~zpulseMax = 150;
+
 (
 	Ndef(\z,	{
 		var output;
 		var delayTime;
-		var delayMax = 0.22;
+		var delayMax = 2.8;
 		var delayAdd = 0.07;
-		var pulseFreq = 0.5;
-		var proxyMul = 10;
+		var pulseFreq = 0.66;
+		var proxyMul = 3.5;
 		var pulseMin = 30;
-		var pulseMax = 2000;
-		var numOfEchos = 6;
-		var mainPulse = LFPulse.ar(pulseFreq, 0, 0.5).range(pulseMin, pulseMax);
+		var pulseMax = 80;
+		var numOfEchos = 7;
+        var pulseMaxOsc = SinOsc.ar(0.01, 0).range(0.0, 80.0);
+		var mainPulse = LFPulse.ar(pulseFreq, 0, 0.5).range(pulseMin, pulseMax +pulseMaxOsc);
 		var proxy = Ndef(\z).ar * proxyMul;
 		var ampModFreq = SinOsc.ar(0.01, 0).range(0.3, 30);
 		var ampMod = LFNoise2.ar(ampModFreq, 6);
@@ -293,7 +298,7 @@ OSCFunc.newMatching(~makeLinSetter.(~pinknoiser,\timedisp,0.0,1.0),  '/pinknoise
 	Ndef(\y,	{
 		var output;
 		var delayTime;
-		var delayMax = 0.2;
+		var delayMax = 1.2;
 		var delayAdd = 0.07;
 		var pulseFreq = 0.5;
 		var proxyMul = 2;
@@ -307,7 +312,7 @@ OSCFunc.newMatching(~makeLinSetter.(~pinknoiser,\timedisp,0.0,1.0),  '/pinknoise
 		var ampMod = LFNoise2.ar(ampModFreq, 1+proxy);
 		output = SinOsc.ar(mainPulse, 0, ampMod).tanh;
 		output = AllpassL.ar(output, 0.1, 0.1, 5);		
-		output.tanh
+		output.tanh * 0.5
 	}).play
 )
 
@@ -326,16 +331,21 @@ Ndef(\y,	{
 
 n=LFNoise1;Ndef(\x,{a=SinOsc.ar(65,Ndef(\x).ar*n.ar(0.1,3),n.ar(3,6)).tanh;9.do{a=AllpassL.ar(a,0.3,{0.2.rand+0.1}!2,5)};a.tanh}).play
 
+Ndef(\z,{ 0*SinOsc.ar(1)})
 
-n=LFNoise0;
-Ndef(\x,
+n=LFNoise1;
+~r = Routine({
+loop {
+	Ndef(\x,
 	{
 		var output;
-		output=SinOsc.ar(65,Ndef(\x).ar*n.ar(0.1,3).tanh + 1.4,n.ar(3,6)+0.1).tanh;
-		32.do{ output=AllpassL.ar(output + (0.5.rand * Ndef(\x).ar),0.3,{0.42.rand+0.01},5) };
-		output.tanh
+		output=SinOsc.ar(60.rand+60,1.1*Ndef(\x).ar*n.ar(0.1,3).tanh + 1.4,n.ar(3,6)+0.1).tanh;
+		12.do{ output=AllpassL.ar(output + (0.5.rand * Ndef(\x).ar),0.5.rand+0.1,{0.9.rand+0.01},5) };
+		output.tanh * 0.2
 	}
-).play
+	).play;
+	60.rand.wait;
+	}}).play
 
 
 */

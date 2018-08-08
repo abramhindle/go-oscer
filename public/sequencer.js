@@ -12,6 +12,16 @@ function Sequencer(args) {
     this.tableUIs = [];
     this.tables = [];
     var self = this;
+    this.generateFromDef = function(def) {
+        if (!def) {
+            throw "Did not send me a real def!";
+        }
+        var tlAndU I= generateTLandUIFromDef(def);
+        var id = this.uis.length;
+        this.tls[id] = tlAndUI[0];
+        this.uis[id] = tlAndUI[1];
+        return [this.tls[id], this.uis[id]];
+    }
     this.generateTimeLineAndUI = function() {
         var id = this.uis.length;
         var tl = new TimeLine();

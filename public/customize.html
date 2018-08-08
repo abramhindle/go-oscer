@@ -20,6 +20,20 @@
     <option>256</option>    
     </select>
     </span>
+    &nbsp;
+    <span class="dotted">
+        <select class="localStore" id="loads">
+        </select>
+        <button id="loadButton">Load</button>
+    </span>
+    &nbsp;
+    <span class="dotted">
+        <select class="localStore" id="saves">
+        <option value="">-----</option>
+        </select>
+        <input id="saveName">
+        <button id="saveButton">Save</button>
+    </span>
     </div>
     <div id="main">
     </div>
@@ -64,39 +78,63 @@ var seq = new Sequencer({ticks: ticks, duration: globalDuration, delegate: sende
 var defs = [
     //{"path":"/timeline/1"},
 ];
-
+var tlus = [];
+var tcs = [];
 function addDef(def) {
-    if (def.table) {
-        var ts = document.getElementById("tableSize");
-        var size = parseInt(ts.options[ts.selectedIndex].text);
-        console.log(size);
-        var tlu = seq.generateTableAndUI(size);
-    } else {
-        var tlu = seq.generateTimeLineAndUI();
+    var old = true;
+    // generated defs
+    if (def.type == "TimeLineControls") {
+        // new stuff
+        console.log("Generating TLC");
+        var tlu = seq.generateFromDef(def);
+        var timeLine = tlu[0];
+        var timeLineUI = tlu[1];
+        old = false;
+        // else old
+    } else if (def.type) {
+        throw ["You've given me an unknown type! "+def.type];
     }
-    var timeLine = tlu[0];
-    timeLine.name = def.path;
-    var timeLineUI = tlu[1];
-    if (def.background) {
-        timeLineUI.background = def.background;
+    // old style def or just a button push
+    if (old) {
+        if (def.table) {
+            var ts = document.getElementById("tableSize");
+            var size = parseInt(ts.options[ts.selectedIndex].text);
+            console.log(size);
+            var tlu = seq.generateTableAndUI(size);
+        } else {
+            var tlu = seq.generateTimeLineAndUI();
+        }
+        var timeLine = tlu[0];
+        timeLine.name = def.path;
+        var timeLineUI = tlu[1];
+        if (def.background) {
+            timeLineUI.background = def.background;
+        }
+        if (!def.table) {
+            timeLineUI.bottom = 0.0;
+        }
+
     }
-    if (!def.table) {
-        timeLineUI.bottom = 0.0;
-    }
-    // main.appendChild( );
+    // make the timeLineControls and something to put them in
     var tc = new TimeLineControls( timeLine, timeLineUI );
     var container = document.createElement("div");
     container.classList.add('tccontainer');
+    // add the controls and timeLineUI to the DOM
     container.appendChild(
         tc.getDom()
     );
     container.appendChild(
         timeLineUI.getDom()
     );
+    // add out contianer to the dom
     main.appendChild(container);
-    if (!def.table) {
+    tlus.push(tlu);
+    tcs.push(tc);
+    // not sure why this was earlier
+    if (old && !def.table) {
         timeLine.addPoints([0.5,0.0]);
     }
+
 }
 
 for (var i = 0; i < defs.length; i++) {
@@ -121,7 +159,69 @@ function generateNewTableDef() {
     addDef(def);
     defs.push(def);
 }
+function removeChildren(dom) {
+    while (dom.firstChild) {
+        dom.removeChild(dom.firstChild);
+    }
+}
+var SAVEDSKEY = "saveds";
+function getSaveds() {
+    if (! SAVEDSKEY in localStorage ) {
+        localStorage.setItem(SAVEDSKEY,JSON.stringify({}));
+    }
+    var saveds = localStorage.getItem(SAVEDSKEY);
+    if (!saveds) {
+        return {};
+    } else {
+        return JSON.parse(saveds);
+    }
+}
+function setSaveds(saveds) {
+    localStorage.setItem(SAVEDSKEY,JSON.stringify(saveds));
+}
 
+function processLocalStore() {
+    var saveds = getSaveds();
+    var savedNames = Object.keys(saveds);
+    savedNames.sort();
+    // get the list and update the options
+    var loads = document.querySelector("#loads");
+    var saves = document.querySelector("#saves");
+    removeChildren(loads);
+    removeChildren(saves);
+    saves.add(new Option("------",""));
+    for (var i = 0 ; i < savedNames.length ; i++) {
+        loads.add(new Option(savedNames[i],savedNames[i]));
+        saves.add(new Option(savedNames[i],savedNames[i]));
+    }
+}
+function saveState(name) {
+    return saveStateRaw(name,tcs.map(x => x.genDef()));
+}
+function saveStateRaw(name, value) {
+    var saveds = getSaveds();    
+    saveds[name] = value;
+    setSaveds(saveds);
+}
+function loadState(name) {
+    // note we lose ticks, globalDuration and sender...
+    var saveds = getSaveds();
+    var loadState = saveds[name];
+    if (!loadState) {
+        throw "Empty Load State for "+name;
+    }
+    seq.stop();
+    removeChildren( document.querySelector("#main") );
+    tlus = [];
+    tcs = [];
+    seq = new Sequencer({ticks: ticks, duration: globalDuration, delegate: sender});
+    defs = saveds[name];
+    
+    for (var i = 0; i < defs.length; i++) {
+        addDef(defs[i]);
+    }
+    seq.start();    
+}
 
 addTimeLine.addEventListener("click",function() {
     generateNewDef();
@@ -129,7 +229,27 @@ addTimeLine.addEventListener("click",function() {
 addTable.addEventListener("click",function() {
     generateNewTableDef();
 });
-                    
+
+processLocalStore();
+
+document.querySelector("#saveButton").addEventListener("click", function() {
+    var e = document.getElementById("saves");
+    var text = e.options[e.selectedIndex].text;
+    var value = e.options[e.selectedIndex].value;
+    if (!value || value.length < 1) {
+        value = document.getElementById("saveName").value;
+    }
+    saveState(value);
+    processLocalStore();
+    document.getElementById("saveName").value = "";
+});
+document.querySelector("#loadButton").addEventListener("click", function() {
+    var e = document.getElementById("loads");
+    var text = e.options[e.selectedIndex].text;
+    var value = e.options[e.selectedIndex].value;
+    loadState(value);
+    processLocalStore();
+});
 
     </script>
   </body>  
